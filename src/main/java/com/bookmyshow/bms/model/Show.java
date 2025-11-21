@@ -1,0 +1,85 @@
+package com.bookmyshow.bms.model;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import java.time.LocalDateTime;
+
+@Entity
+public class Show {
+
+    @Id
+    private Long id;
+
+    @ManyToOne
+    private Movie movie;   // which movie
+
+    @ManyToOne
+    private Theatre theatre; // which theatre
+
+    private LocalDateTime showTime;
+    private int price;
+
+    public Show() {}
+
+    public Show(Long id, Movie movie, Theatre theatre, LocalDateTime showTime, int price) {
+        this.id = id;
+        this.movie = movie;
+        this.theatre = theatre;
+        this.showTime = showTime;
+        this.price = price;
+    }
+
+    public Long getId() {
+        return this.id;
+    }
+
+    public Movie getMovie() {
+        return this.movie;
+    }
+
+    public Theatre getTheatre() {
+        return this.theatre;
+    }
+
+    public LocalDateTime getShowTime() {
+        return this.showTime;
+    }
+
+    public int getPrice() {
+        return this.price;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setMovie(Movie movie) {
+        this.movie = movie;
+    }
+
+    public void setTheatre(Theatre theatre) {
+        this.theatre = theatre;
+    }
+
+    public void setShowTime(LocalDateTime showTime) {
+        this.showTime = showTime;
+    }
+
+    public void setPrice(int price) {
+        this.price = price;
+    }
+
+    public String getDetails() {
+        return String.format(
+                "Show: ID=%d, Movie=%s, Theatre=%s, Time=%s, Price=%d",
+                this.id,
+                this.movie.getTitle(),
+                this.theatre.getName(),
+                this.showTime.toString(),
+                this.price
+        );
+    }
+}
