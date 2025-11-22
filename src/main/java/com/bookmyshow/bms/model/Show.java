@@ -1,23 +1,25 @@
 package com.bookmyshow.bms.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.*; // Imported for @Table, @GeneratedValue, etc.
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "shows") // CHANGE 1: renaming table to avoid MySQL reserved keyword "SHOW"
 public class Show {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // CHANGE 2: Auto-increment ID for MySQL
     private Long id;
 
     @ManyToOne
-    private Movie movie;   // which movie
+    @JoinColumn(name = "movie_id") // Optional but good practice for MySQL foreign keys
+    private Movie movie;
 
     @ManyToOne
-    private Theatre theatre; // which theatre
+    @JoinColumn(name = "theatre_id") // Optional but good practice for MySQL foreign keys
+    private Theatre theatre;
 
     private LocalDateTime showTime;
     private int price;
