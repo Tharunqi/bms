@@ -1,19 +1,439 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>BookMyShow Clone</title>
-    <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CinemaBooking - BookMyShow Clone</title>
+    <style>
+        :root {
+            --primary: #e50914; /* Netflix Red */
+            --dark: #141414;
+            --light: #f5f5f1;
+            --gray: #333;
+            --seat-avail: #fff;
+            --seat-booked: #444;
+            --seat-selected: #e50914;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        body { background-color: var(--dark); color: var(--light); }
+
+        /* Navigation */
+        nav {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 50px; background-color: rgba(0,0,0,0.9);
+            position: sticky; top: 0; z-index: 100;
+            border-bottom: 1px solid #333;
+        }
+        .logo { font-size: 1.5rem; font-weight: bold; color: var(--primary); letter-spacing: 1px; }
+        .nav-links button {
+            background: transparent; border: none; color: #aaa; 
+            margin-left: 20px; cursor: pointer; font-size: 1rem; transition: 0.3s;
+        }
+        .nav-links button:hover, .nav-links button.active { color: var(--light); }
+
+        /* Layout */
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .section { display: none; animation: fadeIn 0.5s; }
+        .section.active { display: block; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        h2 { margin-bottom: 20px; border-left: 4px solid var(--primary); padding-left: 15px; }
+
+        /* Forms (Admin) */
+        .form-group { margin-bottom: 15px; }
+        .form-card { background: #1f1f1f; padding: 20px; border-radius: 8px; margin-bottom: 20px; max-width: 500px; }
+        input, select {
+            width: 100%; padding: 10px; background: #333; border: 1px solid #444;
+            color: white; border-radius: 4px; margin-top: 5px;
+        }
+        button.btn {
+            background: var(--primary); color: white; border: none;
+            padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;
+        }
+        button.btn:hover { background: #b20710; }
+
+        /* Movie Grid */
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+        .movie-card {
+            background: #1f1f1f; border-radius: 8px; overflow: hidden;
+            transition: transform 0.3s; cursor: pointer;
+        }
+        .movie-card:hover { transform: scale(1.03); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .movie-info { padding: 15px; }
+        .movie-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; }
+        .movie-meta { font-size: 0.85rem; color: #aaa; }
+
+        /* Show Selection */
+        .shows-list { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+        .show-pill {
+            background: #333; padding: 8px 15px; border-radius: 20px; 
+            cursor: pointer; font-size: 0.9rem; border: 1px solid #444;
+        }
+        .show-pill:hover { border-color: var(--primary); }
+
+        /* Seat Map */
+        .screen {
+            background: #555; height: 5px; width: 100%; margin: 20px 0 40px 0;
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1); border-radius: 5px;
+        }
+        .seat-grid {
+            display: grid; grid-template-columns: repeat(10, 1fr); 
+            gap: 10px; max-width: 400px; margin: 0 auto;
+        }
+        .seat {
+            height: 30px; width: 30px; background: var(--seat-avail); 
+            border-radius: 4px; cursor: pointer; transition: 0.2s; margin: auto;
+        }
+        .seat.booked { background-color: var(--seat-booked); cursor: not-allowed; }
+        .seat.selected { background-color: var(--seat-selected); transform: scale(1.1); }
+        
+        .legend { display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; margin-top: 20px; font-size: 0.9rem;}
+        .dot { width: 10px; height: 10px; display: inline-block; margin-right: 5px; border-radius: 50%; }
+
+        /* Modal/Booking Area */
+        #booking-area { background: #1f1f1f; padding: 20px; border-radius: 8px; margin-top: 20px; display: none; }
+        
+        /* Notification Toast */
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center;
+            border-radius: 4px; padding: 16px; position: fixed; z-index: 1; bottom: 30px; left: 50%; transform: translateX(-50%);
+        }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+
+    </style>
 </head>
 <body>
 
-<h1>Welcome to BookMyShow</h1>
+    <nav>
+        <div class="logo">MOVIEBOOKER</div>
+        <div class="nav-links">
+            <button onclick="switchTab('user-view')" class="active">Browse Movies</button>
+            <button onclick="switchTab('admin-view')">Admin Panel</button>
+        </div>
+    </nav>
 
-<div class="menu">
-    <a href="/movies.html">Movies</a>
-    <a href="/theatres.html">Theatres</a>
-    <a href="/shows.html">Shows</a>
-    <a href="/booking.html">Book Tickets</a>
-</div>
+    <div class="container">
+        
+        <div id="user-view" class="section active">
+            <h2>Now Showing</h2>
+            <div id="movies-container" class="movie-grid">
+                <p style="color:#aaa">Loading movies...</p>
+            </div>
 
+            <div id="booking-area">
+                <button onclick="closeBooking()" style="float:right; background:none; border:none; color:#aaa; cursor:pointer;">✕ Close</button>
+                <h3 id="booking-title">Select Seats</h3>
+                <p id="booking-subtitle" style="color:#aaa; margin-bottom:20px;"></p>
+                
+                <div class="screen"></div>
+                <p style="text-align: center; font-size: 0.8rem; color: #777; margin-bottom: 10px;">SCREEN THIS WAY</p>
+
+                <div class="seat-grid" id="seat-map">
+                    </div>
+
+                <div class="legend">
+                    <span><span class="dot" style="background:var(--seat-avail)"></span>Available</span>
+                    <span><span class="dot" style="background:var(--seat-selected)"></span>Selected</span>
+                    <span><span class="dot" style="background:var(--seat-booked)"></span>Booked</span>
+                </div>
+
+                <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
+                    <p>Selected Seats: <span id="selected-seats-display" style="color: var(--primary); font-weight: bold;">None</span></p>
+                    <input type="text" id="username-input" placeholder="Enter your name to book" style="margin-bottom: 10px;">
+                    <button class="btn" style="width: 100%;" onclick="confirmBooking()">Confirm Booking</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="admin-view" class="section">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                
+                <div class="form-card">
+                    <h3>Add Movie</h3>
+                    <input type="number" id="m-id" placeholder="ID (e.g. 1)">
+                    <input type="text" id="m-title" placeholder="Title (e.g. Pushpa 2)">
+                    <input type="text" id="m-genre" placeholder="Genre (e.g. Action)">
+                    <input type="number" id="m-duration" placeholder="Duration (mins)">
+                    <button class="btn" style="margin-top: 10px;" onclick="apiAddMovie()">Add Movie</button>
+                </div>
+
+                <div class="form-card">
+                    <h3>Add Theatre</h3>
+                    <input type="number" id="t-id" placeholder="ID (e.g. 101)">
+                    <input type="text" id="t-name" placeholder="Name (e.g. PVR Cinemas)">
+                    <input type="text" id="t-city" placeholder="City (e.g. Bangalore)">
+                    <button class="btn" style="margin-top: 10px;" onclick="apiAddTheatre()">Add Theatre</button>
+                </div>
+
+                <div class="form-card">
+                    <h3>Add Show</h3>
+                    <input type="number" id="s-id" placeholder="Show ID (e.g. 500)">
+                    <input type="number" id="s-movie-id" placeholder="Movie ID (e.g. 1)">
+                    <input type="number" id="s-theatre-id" placeholder="Theatre ID (e.g. 101)">
+                    <input type="datetime-local" id="s-time">
+                    <input type="number" id="s-price" placeholder="Price (e.g. 200)">
+                    <button class="btn" style="margin-top: 10px;" onclick="apiAddShow()">Create Show</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Message</div>
+
+    <script>
+        const API_BASE = "http://localhost:8080"; // Change if your port differs
+
+        // State
+        let currentShowId = null;
+        let selectedSeats = [];
+
+        // --- Navigation ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            // Reload data when switching tabs
+            if(tabId === 'user-view') loadMovies();
+        }
+
+        function showToast(msg) {
+            const x = document.getElementById("toast");
+            x.innerText = msg;
+            x.className = "show";
+            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+        }
+
+        // --- API Calls: GET Data ---
+
+        async function loadMovies() {
+            try {
+                const res = await fetch(`${API_BASE}/movies`);
+                const movies = await res.json();
+                const container = document.getElementById('movies-container');
+                container.innerHTML = '';
+
+                if(movies.length === 0) {
+                    container.innerHTML = '<p>No movies found. Please add movies in Admin Panel.</p>';
+                    return;
+                }
+
+                movies.forEach(movie => {
+                    const card = document.createElement('div');
+                    card.className = 'movie-card';
+                    card.innerHTML = `
+                        <div style="height: 150px; background: #333; display:flex; align-items:center; justify-content:center; color:#555;">
+                            [Poster Placeholder]
+                        </div>
+                        <div class="movie-info">
+                            <div class="movie-title">${movie.title}</div>
+                            <div class="movie-meta">${movie.genre} | ${movie.durationInMinutes} mins</div>
+                            <div id="shows-for-${movie.id}" class="shows-list">
+                                <span style="font-size:0.8rem; color:#777;">Loading shows...</span>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                    loadShowsForMovie(movie.id);
+                });
+            } catch (e) {
+                console.error(e);
+                document.getElementById('movies-container').innerHTML = '<p style="color:red">Error connecting to backend.</p>';
+            }
+        }
+
+        async function loadShowsForMovie(movieId) {
+            try {
+                const res = await fetch(`${API_BASE}/shows/movie/${movieId}`);
+                const shows = await res.json();
+                const container = document.getElementById(`shows-for-${movieId}`);
+                container.innerHTML = '';
+
+                if(shows.length === 0) {
+                    container.innerHTML = '<small>No shows available</small>';
+                    return;
+                }
+
+                shows.forEach(show => {
+                    const time = new Date(show.showTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const btn = document.createElement('div');
+                    btn.className = 'show-pill';
+                    btn.innerText = `${time} (${show.theatre.name})`;
+                    btn.onclick = () => openBooking(show);
+                    container.appendChild(btn);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // --- Booking Flow ---
+
+        async function openBooking(show) {
+            currentShowId = show.id;
+            selectedSeats = [];
+            updateSeatDisplay();
+            
+            document.getElementById('booking-area').style.display = 'block';
+            document.getElementById('booking-title').innerText = `Booking: ${show.movie.title}`;
+            document.getElementById('booking-subtitle').innerText = `${show.theatre.name} | ${new Date(show.showTime).toLocaleString()} | ₹${show.price}`;
+            document.getElementById('seat-map').innerHTML = 'Loading seats...';
+            
+            // Scroll to booking area
+            document.getElementById('booking-area').scrollIntoView({behavior: 'smooth'});
+
+            // Load Seats
+            try {
+                const res = await fetch(`${API_BASE}/seats/show/${show.id}`);
+                const seats = await res.json();
+                renderSeats(seats);
+            } catch (e) {
+                alert("Failed to load seats");
+            }
+        }
+
+        function renderSeats(seats) {
+            const grid = document.getElementById('seat-map');
+            grid.innerHTML = '';
+            
+            // Sort seats A1, A2... usually backend sends ordered, but grid auto-flows
+            seats.forEach(seat => {
+                const div = document.createElement('div');
+                div.className = `seat ${seat.booked ? 'booked' : ''}`;
+                div.title = seat.seatNumber;
+                
+                if(!seat.booked) {
+                    div.onclick = () => toggleSeat(div, seat.seatNumber);
+                }
+                
+                grid.appendChild(div);
+            });
+        }
+
+        function toggleSeat(el, seatNum) {
+            if(el.classList.contains('selected')) {
+                el.classList.remove('selected');
+                selectedSeats = selectedSeats.filter(s => s !== seatNum);
+            } else {
+                el.classList.add('selected');
+                selectedSeats.push(seatNum);
+            }
+            updateSeatDisplay();
+        }
+
+        function updateSeatDisplay() {
+            const display = document.getElementById('selected-seats-display');
+            display.innerText = selectedSeats.length > 0 ? selectedSeats.join(', ') : 'None';
+        }
+
+        function closeBooking() {
+            document.getElementById('booking-area').style.display = 'none';
+            currentShowId = null;
+            selectedSeats = [];
+        }
+
+        async function confirmBooking() {
+            const user = document.getElementById('username-input').value;
+            if(!user || selectedSeats.length === 0) {
+                showToast("Please select seats and enter a name");
+                return;
+            }
+
+            // Generate a random numeric Booking ID (since spec requires input)
+            const bookingId = Math.floor(Math.random() * 100000);
+
+            // Construct Query Params manually as per spec
+            // Spec: /booking?showId=&bookingId=&userName=&seats=A1&seats=A2
+            const params = new URLSearchParams();
+            params.append("showId", currentShowId);
+            params.append("bookingId", bookingId);
+            params.append("userName", user);
+            selectedSeats.forEach(s => params.append("seats", s));
+
+            try {
+                const res = await fetch(`${API_BASE}/booking?${params.toString()}`, {
+                    method: 'POST'
+                });
+
+                if(res.ok) {
+                    showToast("Booking Successful!");
+                    closeBooking();
+                    // Refresh shows to update seat availability status visually
+                    loadMovies(); 
+                } else {
+                    const txt = await res.text();
+                    alert("Booking failed: " + txt);
+                }
+            } catch (e) {
+                alert("Error booking tickets");
+            }
+        }
+
+        // --- Admin Functions (POST) ---
+
+        async function apiAddMovie() {
+            const data = {
+                id: document.getElementById('m-id').value,
+                title: document.getElementById('m-title').value,
+                genre: document.getElementById('m-genre').value,
+                durationInMinutes: document.getElementById('m-duration').value
+            };
+            
+            await sendPostRequest('/movies', data, "Movie Added!");
+        }
+
+        async function apiAddTheatre() {
+            const data = {
+                id: document.getElementById('t-id').value,
+                name: document.getElementById('t-name').value,
+                city: document.getElementById('t-city').value
+            };
+            await sendPostRequest('/theatres', data, "Theatre Added!");
+        }
+
+        async function apiAddShow() {
+            // format time to match LocalDateTime requirements if necessary
+            // HTML datetime-local returns "2025-11-25T19:30", backend might need ":00" seconds
+            let timeVal = document.getElementById('s-time').value;
+            if(timeVal.length === 16) timeVal += ":00";
+
+            const data = {
+                id: document.getElementById('s-id').value,
+                movie: { id: document.getElementById('s-movie-id').value },
+                theatre: { id: document.getElementById('s-theatre-id').value },
+                showTime: timeVal,
+                price: document.getElementById('s-price').value
+            };
+            
+            await sendPostRequest('/shows', data, "Show Created! Seats generated.");
+        }
+
+        async function sendPostRequest(endpoint, data, successMsg) {
+            try {
+                const res = await fetch(API_BASE + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if(res.ok) {
+                    showToast(successMsg);
+                    // Clear inputs (optional)
+                } else {
+                    alert("Error: Check IDs or Server logs");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Request failed");
+            }
+        }
+
+        // Initial Load
+        loadMovies();
+
+    </script>
 </body>
 </html>
