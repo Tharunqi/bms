@@ -120,7 +120,13 @@
     <div class="container">
         
         <div id="user-view" class="section active">
-            <h2>Now Showing</h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h2 style="margin-bottom:0;">Now Showing</h2>
+                <input type="text" id="movie-search" placeholder="Search by title or genre..." 
+                       style="max-width: 300px; padding: 10px; background: #222; border: 1px solid #444; color: white;"
+                       oninput="filterMovies()">
+            </div>
+
             <div id="movies-container" class="movie-grid">
                 <p style="color:#aaa">Loading movies...</p>
             </div>
@@ -172,7 +178,6 @@
 
                 <div class="form-card">
                     <h3>Add Show</h3>
-                    <input type="number" id="s-id" placeholder="Show ID (e.g. 500)">
                     <input type="number" id="s-movie-id" placeholder="Movie ID (e.g. 1)">
                     <input type="number" id="s-theatre-id" placeholder="Theatre ID (e.g. 101)">
                     <input type="datetime-local" id="s-time">
@@ -191,6 +196,7 @@
         // State
         let currentShowId = null;
         let selectedSeats = [];
+        let allMovies = []; // NEW: Store movies globally for search filtering
 
         // --- Navigation ---
         function switchTab(tabId) {
@@ -213,37 +219,52 @@
         async function loadMovies() {
             try {
                 const res = await fetch(`${API_BASE}/movies`);
-                const movies = await res.json();
-                const container = document.getElementById('movies-container');
-                container.innerHTML = '';
-
-                if(movies.length === 0) {
-                    container.innerHTML = '<p>No movies found. Please add movies in Admin Panel.</p>';
-                    return;
-                }
-
-                movies.forEach(movie => {
-                    const card = document.createElement('div');
-                    card.className = 'movie-card';
-                    card.innerHTML = `
-                        <div style="height: 150px; background: #333; display:flex; align-items:center; justify-content:center; color:#555;">
-                            [Poster Placeholder]
-                        </div>
-                        <div class="movie-info">
-                            <div class="movie-title">${movie.title}</div>
-                            <div class="movie-meta">${movie.genre} | ${movie.durationInMinutes} mins</div>
-                            <div id="shows-for-${movie.id}" class="shows-list">
-                                <span style="font-size:0.8rem; color:#777;">Loading shows...</span>
-                            </div>
-                        </div>
-                    `;
-                    container.appendChild(card);
-                    loadShowsForMovie(movie.id);
-                });
+                allMovies = await res.json(); // Store in global variable
+                renderMovies(allMovies); // Initial render
             } catch (e) {
                 console.error(e);
                 document.getElementById('movies-container').innerHTML = '<p style="color:red">Error connecting to backend.</p>';
             }
+        }
+
+        // NEW: Function to filter movies based on search input
+        function filterMovies() {
+            const searchTerm = document.getElementById('movie-search').value.toLowerCase();
+            const filtered = allMovies.filter(movie => 
+                movie.title.toLowerCase().includes(searchTerm) || 
+                movie.genre.toLowerCase().includes(searchTerm)
+            );
+            renderMovies(filtered);
+        }
+
+        // Refactored Render Function (Reusable)
+        function renderMovies(movies) {
+            const container = document.getElementById('movies-container');
+            container.innerHTML = '';
+
+            if(movies.length === 0) {
+                container.innerHTML = '<p>No movies found matching your search.</p>';
+                return;
+            }
+
+            movies.forEach(movie => {
+                const card = document.createElement('div');
+                card.className = 'movie-card';
+                card.innerHTML = `
+                    <div style="height: 150px; background: #333; display:flex; align-items:center; justify-content:center; color:#555;">
+                        [Poster Placeholder]
+                    </div>
+                    <div class="movie-info">
+                        <div class="movie-title">${movie.title}</div>
+                        <div class="movie-meta">${movie.genre} | ${movie.durationInMinutes} mins</div>
+                        <div id="shows-for-${movie.id}" class="shows-list">
+                            <span style="font-size:0.8rem; color:#777;">Loading shows...</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+                loadShowsForMovie(movie.id);
+            });
         }
 
         async function loadShowsForMovie(movieId) {
@@ -343,11 +364,9 @@
                 return;
             }
 
-            // Generate a random numeric Booking ID (since spec requires input)
+            // Generate a random numeric Booking ID
             const bookingId = Math.floor(Math.random() * 100000);
 
-            // Construct Query Params manually as per spec
-            // Spec: /booking?showId=&bookingId=&userName=&seats=A1&seats=A2
             const params = new URLSearchParams();
             params.append("showId", currentShowId);
             params.append("bookingId", bookingId);
@@ -396,13 +415,12 @@
         }
 
         async function apiAddShow() {
-            // format time to match LocalDateTime requirements if necessary
-            // HTML datetime-local returns "2025-11-25T19:30", backend might need ":00" seconds
+            // format time to match LocalDateTime requirements
             let timeVal = document.getElementById('s-time').value;
             if(timeVal.length === 16) timeVal += ":00";
 
             const data = {
-                id: document.getElementById('s-id').value,
+                // REMOVED "id" field: MySQL now handles this via @GeneratedValue
                 movie: { id: document.getElementById('s-movie-id').value },
                 theatre: { id: document.getElementById('s-theatre-id').value },
                 showTime: timeVal,
