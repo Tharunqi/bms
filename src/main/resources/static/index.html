@@ -21,7 +21,8 @@
 
         /* Navigation */
         nav {
-            display: flex; justify-content: space-between; align-items: center;
+            display: none; /* Hidden by default until login */
+            justify-content: space-between; align-items: center;
             padding: 20px 50px; background-color: rgba(0,0,0,0.9);
             position: sticky; top: 0; z-index: 100;
             border-bottom: 1px solid #333;
@@ -42,18 +43,30 @@
 
         h2 { margin-bottom: 20px; border-left: 4px solid var(--primary); padding-left: 15px; }
 
-        /* Forms (Admin) */
+        /* Forms (Admin & Auth) */
         .form-group { margin-bottom: 15px; }
         .form-card { background: #1f1f1f; padding: 20px; border-radius: 8px; margin-bottom: 20px; max-width: 500px; }
+        
+        /* Auth Specific */
+        .auth-container {
+            height: 100vh; display: flex; justify-content: center; align-items: center;
+        }
+        .auth-card {
+            background: #1f1f1f; padding: 40px; border-radius: 8px; width: 100%; max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center;
+        }
+        .auth-card h2 { border: none; padding: 0; margin-bottom: 20px; color: var(--primary); }
+
         input, select {
             width: 100%; padding: 10px; background: #333; border: 1px solid #444;
-            color: white; border-radius: 4px; margin-top: 5px;
+            color: white; border-radius: 4px; margin-top: 5px; margin-bottom: 15px;
         }
         button.btn {
             background: var(--primary); color: white; border: none;
             padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;
         }
         button.btn:hover { background: #b20710; }
+        .link-btn { color: #aaa; cursor: pointer; text-decoration: underline; font-size: 0.9rem; }
 
         /* Movie Grid */
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
@@ -109,15 +122,35 @@
 </head>
 <body>
 
-    <nav>
+    <div id="auth-view" class="auth-container">
+        
+        <div id="login-form" class="auth-card">
+            <h2>Login</h2>
+            <input type="text" id="login-user" placeholder="Username">
+            <input type="password" id="login-pass" placeholder="Password">
+            <button class="btn" style="width:100%" onclick="apiLogin()">Login</button>
+            <p style="margin-top:15px; color:#aaa">Don't have an account? <span class="link-btn" onclick="toggleAuthMode()">Register</span></p>
+        </div>
+
+        <div id="register-form" class="auth-card" style="display:none">
+            <h2>Register</h2>
+            <input type="text" id="reg-user" placeholder="Username">
+            <input type="password" id="reg-pass" placeholder="Password">
+            <button class="btn" style="width:100%" onclick="apiRegister()">Sign Up</button>
+            <p style="margin-top:15px; color:#aaa">Already have an account? <span class="link-btn" onclick="toggleAuthMode()">Login</span></p>
+        </div>
+    </div>
+
+    <nav id="main-nav">
         <div class="logo">MOVIEBOOKER</div>
         <div class="nav-links">
             <button onclick="switchTab('user-view')" class="active">Browse Movies</button>
             <button onclick="switchTab('admin-view')">Admin Panel</button>
+            <button onclick="logout()" style="color: var(--primary);">Logout</button>
         </div>
     </nav>
 
-    <div class="container">
+    <div id="main-container" class="container" style="display:none;">
         
         <div id="user-view" class="section active">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
@@ -150,6 +183,9 @@
 
                 <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
                     <p>Selected Seats: <span id="selected-seats-display" style="color: var(--primary); font-weight: bold;">None</span></p>
+                    
+                    <input type="email" id="email-input" placeholder="Enter your email for receipt" style="margin-bottom: 10px;">
+                    
                     <input type="text" id="username-input" placeholder="Enter your name to book" style="margin-bottom: 10px;">
                     <button class="btn" style="width: 100%;" onclick="confirmBooking()">Confirm Booking</button>
                 </div>
@@ -191,19 +227,100 @@
     <div id="toast">Message</div>
 
     <script>
-        const API_BASE = "http://localhost:8080"; // Change if your port differs
+        const API_BASE = "http://localhost:8080"; 
 
         // State
         let currentShowId = null;
         let selectedSeats = [];
-        let allMovies = []; // NEW: Store movies globally for search filtering
+        let allMovies = []; 
+        let authToken = localStorage.getItem("token");
+        let currentUser = localStorage.getItem("username");
+
+        // --- Auth Logic ---
+
+        function checkLogin() {
+            if(authToken) {
+                document.getElementById('auth-view').style.display = 'none';
+                document.getElementById('main-nav').style.display = 'flex';
+                document.getElementById('main-container').style.display = 'block';
+                loadMovies();
+            } else {
+                document.getElementById('auth-view').style.display = 'flex';
+                document.getElementById('main-nav').style.display = 'none';
+                document.getElementById('main-container').style.display = 'none';
+            }
+        }
+
+        function toggleAuthMode() {
+            const loginForm = document.getElementById('login-form');
+            const regForm = document.getElementById('register-form');
+            if(loginForm.style.display === 'none') {
+                loginForm.style.display = 'block';
+                regForm.style.display = 'none';
+            } else {
+                loginForm.style.display = 'none';
+                regForm.style.display = 'block';
+            }
+        }
+
+        async function apiLogin() {
+            const u = document.getElementById('login-user').value;
+            const p = document.getElementById('login-pass').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+
+                if(res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem("token", data.token);
+                    localStorage.setItem("username", u);
+                    authToken = data.token;
+                    currentUser = u;
+                    checkLogin();
+                    showToast("Login Successful");
+                } else {
+                    showToast("Invalid Credentials");
+                }
+            } catch(e) { console.error(e); showToast("Login Error"); }
+        }
+
+        async function apiRegister() {
+            const u = document.getElementById('reg-user').value;
+            const p = document.getElementById('reg-pass').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+
+                if(res.ok) {
+                    showToast("User Created! Please Login.");
+                    toggleAuthMode();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || "Registration Failed");
+                }
+            } catch(e) { console.error(e); showToast("Registration Error"); }
+        }
+
+        function logout() {
+            localStorage.removeItem("token");
+            localStorage.removeItem("username");
+            authToken = null;
+            currentUser = null;
+            checkLogin();
+        }
 
         // --- Navigation ---
         function switchTab(tabId) {
             document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            
-            // Reload data when switching tabs
             if(tabId === 'user-view') loadMovies();
         }
 
@@ -214,20 +331,20 @@
             setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
         }
 
-        // --- API Calls: GET Data ---
+        // --- Movies & Booking ---
 
         async function loadMovies() {
+            if(!authToken) return;
             try {
                 const res = await fetch(`${API_BASE}/movies`);
-                allMovies = await res.json(); // Store in global variable
-                renderMovies(allMovies); // Initial render
+                allMovies = await res.json(); 
+                renderMovies(allMovies); 
             } catch (e) {
                 console.error(e);
                 document.getElementById('movies-container').innerHTML = '<p style="color:red">Error connecting to backend.</p>';
             }
         }
 
-        // NEW: Function to filter movies based on search input
         function filterMovies() {
             const searchTerm = document.getElementById('movie-search').value.toLowerCase();
             const filtered = allMovies.filter(movie => 
@@ -237,7 +354,6 @@
             renderMovies(filtered);
         }
 
-        // Refactored Render Function (Reusable)
         function renderMovies(movies) {
             const container = document.getElementById('movies-container');
             container.innerHTML = '';
@@ -287,50 +403,41 @@
                     btn.onclick = () => openBooking(show);
                     container.appendChild(btn);
                 });
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         }
-
-        // --- Booking Flow ---
 
         async function openBooking(show) {
             currentShowId = show.id;
             selectedSeats = [];
             updateSeatDisplay();
             
+            // Auto-fill username if logged in
+            if(currentUser) document.getElementById('username-input').value = currentUser;
+
+            // Clear email field for a new booking
+            document.getElementById('email-input').value = '';
+
             document.getElementById('booking-area').style.display = 'block';
             document.getElementById('booking-title').innerText = `Booking: ${show.movie.title}`;
             document.getElementById('booking-subtitle').innerText = `${show.theatre.name} | ${new Date(show.showTime).toLocaleString()} | ₹${show.price}`;
             document.getElementById('seat-map').innerHTML = 'Loading seats...';
-            
-            // Scroll to booking area
             document.getElementById('booking-area').scrollIntoView({behavior: 'smooth'});
 
-            // Load Seats
             try {
                 const res = await fetch(`${API_BASE}/seats/show/${show.id}`);
                 const seats = await res.json();
                 renderSeats(seats);
-            } catch (e) {
-                alert("Failed to load seats");
-            }
+            } catch (e) { alert("Failed to load seats"); }
         }
 
         function renderSeats(seats) {
             const grid = document.getElementById('seat-map');
             grid.innerHTML = '';
-            
-            // Sort seats A1, A2... usually backend sends ordered, but grid auto-flows
             seats.forEach(seat => {
                 const div = document.createElement('div');
                 div.className = `seat ${seat.booked ? 'booked' : ''}`;
                 div.title = seat.seatNumber;
-                
-                if(!seat.booked) {
-                    div.onclick = () => toggleSeat(div, seat.seatNumber);
-                }
-                
+                if(!seat.booked) div.onclick = () => toggleSeat(div, seat.seatNumber);
                 grid.appendChild(div);
             });
         }
@@ -347,8 +454,7 @@
         }
 
         function updateSeatDisplay() {
-            const display = document.getElementById('selected-seats-display');
-            display.innerText = selectedSeats.length > 0 ? selectedSeats.join(', ') : 'None';
+            document.getElementById('selected-seats-display').innerText = selectedSeats.length > 0 ? selectedSeats.join(', ') : 'None';
         }
 
         function closeBooking() {
@@ -359,18 +465,19 @@
 
         async function confirmBooking() {
             const user = document.getElementById('username-input').value;
-            if(!user || selectedSeats.length === 0) {
-                showToast("Please select seats and enter a name");
+            const email = document.getElementById('email-input').value; // 🚨 GET NEW EMAIL VALUE
+
+            if(!user || selectedSeats.length === 0 || !email) {
+                showToast("Please select seats, enter your name, and your email.");
                 return;
             }
 
-            // Generate a random numeric Booking ID
             const bookingId = Math.floor(Math.random() * 100000);
-
             const params = new URLSearchParams();
             params.append("showId", currentShowId);
             params.append("bookingId", bookingId);
             params.append("userName", user);
+            params.append("clientEmail", email); // 🚨 APPEND NEW EMAIL PARAM
             selectedSeats.forEach(s => params.append("seats", s));
 
             try {
@@ -379,20 +486,17 @@
                 });
 
                 if(res.ok) {
-                    showToast("Booking Successful!");
+                    showToast("Booking Successful! Confirmation email sent.");
                     closeBooking();
-                    // Refresh shows to update seat availability status visually
                     loadMovies(); 
                 } else {
                     const txt = await res.text();
                     alert("Booking failed: " + txt);
                 }
-            } catch (e) {
-                alert("Error booking tickets");
-            }
+            } catch (e) { alert("Error booking tickets"); }
         }
 
-        // --- Admin Functions (POST) ---
+        // --- Admin Functions ---
 
         async function apiAddMovie() {
             const data = {
@@ -401,7 +505,6 @@
                 genre: document.getElementById('m-genre').value,
                 durationInMinutes: document.getElementById('m-duration').value
             };
-            
             await sendPostRequest('/movies', data, "Movie Added!");
         }
 
@@ -415,19 +518,16 @@
         }
 
         async function apiAddShow() {
-            // format time to match LocalDateTime requirements
             let timeVal = document.getElementById('s-time').value;
             if(timeVal.length === 16) timeVal += ":00";
 
             const data = {
-                // REMOVED "id" field: MySQL now handles this via @GeneratedValue
                 movie: { id: document.getElementById('s-movie-id').value },
                 theatre: { id: document.getElementById('s-theatre-id').value },
                 showTime: timeVal,
                 price: document.getElementById('s-price').value
             };
-            
-            await sendPostRequest('/shows', data, "Show Created! Seats generated.");
+            await sendPostRequest('/shows', data, "Show Created!");
         }
 
         async function sendPostRequest(endpoint, data, successMsg) {
@@ -439,18 +539,14 @@
                 });
                 if(res.ok) {
                     showToast(successMsg);
-                    // Clear inputs (optional)
                 } else {
                     alert("Error: Check IDs or Server logs");
                 }
-            } catch (e) {
-                console.error(e);
-                alert("Request failed");
-            }
+            } catch (e) { console.error(e); alert("Request failed"); }
         }
 
-        // Initial Load
-        loadMovies();
+        // Initial App Check
+        checkLogin();
 
     </script>
 </body>
