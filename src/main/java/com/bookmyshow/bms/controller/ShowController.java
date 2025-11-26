@@ -61,5 +61,10 @@ public class ShowController {
     public Show getShow(@PathVariable Long id) {
         return showService.getShowById(id);
     }
+
+    @GetMapping
+    public List<Show> getAllShows() {
+        return showService.getAllShows();
+    }
 }
 

@@ -27,6 +27,10 @@ public class ShowService {
         return showRepository.save(show);
     }
 
+    public List<Show> getAllShows() {
+        return showRepository.findAll();
+    }
+
     public List<Show> getShowsForMovie(Long movieId) {
         return showRepository.findAll()
                 .stream()
