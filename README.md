@@ -14,6 +14,8 @@ The backend is powered by **Java Spring Boot**, utilizing an **H2 In-Memory Data
 * **Smart Seat Management:** Automatic seat generation for every new show added.
 * **Booking System:** Real-time seat availability checks and double-booking prevention.
 * **Frontend Interface:** Simple web pages to interact with the API.
+* **User Authentication** Login and registration implemented with JWT
+* **Booking confirmation** Booking confirmation sent through Email
 
 ---
 
