@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CinemaBooking - BookMyShow Clone</title>
+    <style>
+        :root {
+            --primary: #e50914; /* Netflix Red */
+            --dark: #141414;
+            --light: #f5f5f1;
+            --gray: #333;
+            --seat-avail: #fff;
+            --seat-booked: #444;
+            --seat-selected: #e50914;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        body { background-color: var(--dark); color: var(--light); }
+
+        /* Navigation */
+        nav {
+            display: none; /* Hidden by default until login */
+            justify-content: space-between; align-items: center;
+            padding: 20px 50px; background-color: rgba(0,0,0,0.9);
+            position: sticky; top: 0; z-index: 100;
+            border-bottom: 1px solid #333;
+        }
+        .logo { font-size: 1.5rem; font-weight: bold; color: var(--primary); letter-spacing: 1px; }
+        .nav-links button {
+            background: transparent; border: none; color: #aaa; 
+            margin-left: 20px; cursor: pointer; font-size: 1rem; transition: 0.3s;
+        }
+        .nav-links button:hover, .nav-links button.active { color: var(--light); }
+
+        /* Layout */
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .section { display: none; animation: fadeIn 0.5s; }
+        .section.active { display: block; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        h2 { margin-bottom: 20px; border-left: 4px solid var(--primary); padding-left: 15px; }
+
+        /* Forms (Admin & Auth) */
+        .form-group { margin-bottom: 15px; }
+        .form-card { background: #1f1f1f; padding: 20px; border-radius: 8px; margin-bottom: 20px; max-width: 500px; }
+        
+        /* Auth Specific */
+        .auth-container {
+            height: 100vh; display: flex; justify-content: center; align-items: center;
+        }
+        .auth-card {
+            background: #1f1f1f; padding: 40px; border-radius: 8px; width: 100%; max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center;
+        }
+        .auth-card h2 { border: none; padding: 0; margin-bottom: 20px; color: var(--primary); }
+
+        input, select {
+            width: 100%; padding: 10px; background: #333; border: 1px solid #444;
+            color: white; border-radius: 4px; margin-top: 5px; margin-bottom: 15px;
+        }
+        button.btn {
+            background: var(--primary); color: white; border: none;
+            padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;
+        }
+        button.btn:hover { background: #b20710; }
+        .link-btn { color: #aaa; cursor: pointer; text-decoration: underline; font-size: 0.9rem; }
+
+        /* Movie Grid */
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+        .movie-card {
+            background: #1f1f1f; border-radius: 8px; overflow: hidden;
+            transition: transform 0.3s; cursor: pointer;
+        }
+        .movie-card:hover { transform: scale(1.03); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .movie-info { padding: 15px; }
+        .movie-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; }
+        .movie-meta { font-size: 0.85rem; color: #aaa; }
+
+        /* Show Selection */
+        .shows-list { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+        .show-pill {
+            background: #333; padding: 8px 15px; border-radius: 20px; 
+            cursor: pointer; font-size: 0.9rem; border: 1px solid #444;
+        }
+        .show-pill:hover { border-color: var(--primary); }
+
+        /* Seat Map */
+        .screen {
+            background: #555; height: 5px; width: 100%; margin: 20px 0 40px 0;
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1); border-radius: 5px;
+        }
+        .seat-grid {
+            display: grid; grid-template-columns: repeat(10, 1fr); 
+            gap: 10px; max-width: 400px; margin: 0 auto;
+        }
+        .seat {
+            height: 30px; width: 30px; background: var(--seat-avail); 
+            border-radius: 4px; cursor: pointer; transition: 0.2s; margin: auto;
+        }
+        .seat.booked { background-color: var(--seat-booked); cursor: not-allowed; }
+        .seat.selected { background-color: var(--seat-selected); transform: scale(1.1); }
+        
+        .legend { display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; margin-top: 20px; font-size: 0.9rem;}
+        .dot { width: 10px; height: 10px; display: inline-block; margin-right: 5px; border-radius: 50%; }
+
+        /* Modal/Booking Area */
+        #booking-area { background: #1f1f1f; padding: 20px; border-radius: 8px; margin-top: 20px; display: none; }
+        
+        /* Notification Toast */
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center;
+            border-radius: 4px; padding: 16px; position: fixed; z-index: 1; bottom: 30px; left: 50%; transform: translateX(-50%);
+        }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+
+    </style>
+</head>
+<body>
+
+    <div id="auth-view" class="auth-container">
+        
+        <div id="login-form" class="auth-card">
+            <h2>Login</h2>
+            <input type="text" id="login-user" placeholder="Username">
+            <input type="password" id="login-pass" placeholder="Password">
+            <button class="btn" style="width:100%" onclick="apiLogin()">Login</button>
+            <p style="margin-top:15px; color:#aaa">Don't have an account? <span class="link-btn" onclick="toggleAuthMode()">Register</span></p>
+        </div>
+
+        <div id="register-form" class="auth-card" style="display:none">
+            <h2>Register</h2>
+            <input type="text" id="reg-user" placeholder="Username">
+            <input type="password" id="reg-pass" placeholder="Password">
+            <button class="btn" style="width:100%" onclick="apiRegister()">Sign Up</button>
+            <p style="margin-top:15px; color:#aaa">Already have an account? <span class="link-btn" onclick="toggleAuthMode()">Login</span></p>
+        </div>
+    </div>
+
+    <nav id="main-nav">
+        <div class="logo">MOVIEBOOKER</div>
+        <div class="nav-links">
+            <button onclick="switchTab('user-view')" class="active">Browse Movies</button>
+            <button onclick="switchTab('admin-view')">Admin Panel</button>
+            <button onclick="logout()" style="color: var(--primary);">Logout</button>
+        </div>
+    </nav>
+
+    <div id="main-container" class="container" style="display:none;">
+        
+        <div id="user-view" class="section active">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h2 style="margin-bottom:0;">Now Showing</h2>
+                <input type="text" id="movie-search" placeholder="Search by title or genre..." 
+                       style="max-width: 300px; padding: 10px; background: #222; border: 1px solid #444; color: white;"
+                       oninput="filterMovies()">
+            </div>
+
+            <div id="movies-container" class="movie-grid">
+                <p style="color:#aaa">Loading movies...</p>
+            </div>
+
+            <div id="booking-area">
+                <button onclick="closeBooking()" style="float:right; background:none; border:none; color:#aaa; cursor:pointer;">✕ Close</button>
+                <h3 id="booking-title">Select Seats</h3>
+                <p id="booking-subtitle" style="color:#aaa; margin-bottom:20px;"></p>
+                
+                <div class="screen"></div>
+                <p style="text-align: center; font-size: 0.8rem; color: #777; margin-bottom: 10px;">SCREEN THIS WAY</p>
+
+                <div class="seat-grid" id="seat-map">
+                    </div>
+
+                <div class="legend">
+                    <span><span class="dot" style="background:var(--seat-avail)"></span>Available</span>
+                    <span><span class="dot" style="background:var(--seat-selected)"></span>Selected</span>
+                    <span><span class="dot" style="background:var(--seat-booked)"></span>Booked</span>
+                </div>
+
+                <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
+                    <p>Selected Seats: <span id="selected-seats-display" style="color: var(--primary); font-weight: bold;">None</span></p>
+                    
+                    <input type="email" id="email-input" placeholder="Enter your email for receipt" style="margin-bottom: 10px;">
+                    
+                    <input type="text" id="username-input" placeholder="Enter your name to book" style="margin-bottom: 10px;">
+                    <button class="btn" style="width: 100%;" onclick="confirmBooking()">Confirm Booking</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="admin-view" class="section">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                
+                <div class="form-card">
+                    <h3>Add Movie</h3>
+                    <input type="number" id="m-id" placeholder="ID (e.g. 1)">
+                    <input type="text" id="m-title" placeholder="Title (e.g. Pushpa 2)">
+                    <input type="text" id="m-genre" placeholder="Genre (e.g. Action)">
+                    <input type="number" id="m-duration" placeholder="Duration (mins)">
+                    <button class="btn" style="margin-top: 10px;" onclick="apiAddMovie()">Add Movie</button>
+                </div>
+
+                <div class="form-card">
+                    <h3>Add Theatre</h3>
+                    <input type="number" id="t-id" placeholder="ID (e.g. 101)">
+                    <input type="text" id="t-name" placeholder="Name (e.g. PVR Cinemas)">
+                    <input type="text" id="t-city" placeholder="City (e.g. Bangalore)">
+                    <button class="btn" style="margin-top: 10px;" onclick="apiAddTheatre()">Add Theatre</button>
+                </div>
+
+                <div class="form-card">
+                    <h3>Add Show</h3>
+                    <input type="number" id="s-movie-id" placeholder="Movie ID (e.g. 1)">
+                    <input type="number" id="s-theatre-id" placeholder="Theatre ID (e.g. 101)">
+                    <input type="datetime-local" id="s-time">
+                    <input type="number" id="s-price" placeholder="Price (e.g. 200)">
+                    <button class="btn" style="margin-top: 10px;" onclick="apiAddShow()">Create Show</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Message</div>
+
+    <script>
+        const API_BASE = "http://localhost:8080"; 
+
+        // State
+        let currentShowId = null;
+        let selectedSeats = [];
+        let allMovies = []; 
+        let authToken = localStorage.getItem("token");
+        let currentUser = localStorage.getItem("username");
+
+        // --- Auth Logic ---
+
+        function checkLogin() {
+            if(authToken) {
+                document.getElementById('auth-view').style.display = 'none';
+                document.getElementById('main-nav').style.display = 'flex';
+                document.getElementById('main-container').style.display = 'block';
+                loadMovies();
+            } else {
+                document.getElementById('auth-view').style.display = 'flex';
+                document.getElementById('main-nav').style.display = 'none';
+                document.getElementById('main-container').style.display = 'none';
+            }
+        }
+
+        function toggleAuthMode() {
+            const loginForm = document.getElementById('login-form');
+            const regForm = document.getElementById('register-form');
+            if(loginForm.style.display === 'none') {
+                loginForm.style.display = 'block';
+                regForm.style.display = 'none';
+            } else {
+                loginForm.style.display = 'none';
+                regForm.style.display = 'block';
+            }
+        }
+
+        async function apiLogin() {
+            const u = document.getElementById('login-user').value;
+            const p = document.getElementById('login-pass').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+
+                if(res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem("token", data.token);
+                    localStorage.setItem("username", u);
+                    authToken = data.token;
+                    currentUser = u;
+                    checkLogin();
+                    showToast("Login Successful");
+                } else {
+                    showToast("Invalid Credentials");
+                }
+            } catch(e) { console.error(e); showToast("Login Error"); }
+        }
+
+        async function apiRegister() {
+            const u = document.getElementById('reg-user').value;
+            const p = document.getElementById('reg-pass').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+
+                if(res.ok) {
+                    showToast("User Created! Please Login.");
+                    toggleAuthMode();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || "Registration Failed");
+                }
+            } catch(e) { console.error(e); showToast("Registration Error"); }
+        }
+
+        function logout() {
+            localStorage.removeItem("token");
+            localStorage.removeItem("username");
+            authToken = null;
+            currentUser = null;
+            checkLogin();
+        }
+
+        // --- Navigation ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            if(tabId === 'user-view') loadMovies();
+            if(tabId === 'admin-view') {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                document.getElementById('s-time').min = now.toISOString().slice(0, 16);
+            }
+        }
+
+        function showToast(msg) {
+            const x = document.getElementById("toast");
+            x.innerText = msg;
+            x.className = "show";
+            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+        }
+
+        // --- Movies & Booking ---
+
+        async function loadMovies() {
+            if(!authToken) return;
+            try {
+                const res = await fetch(`${API_BASE}/movies`);
+                allMovies = await res.json(); 
+                renderMovies(allMovies); 
+            } catch (e) {
+                console.error(e);
+                document.getElementById('movies-container').innerHTML = '<p style="color:red">Error connecting to backend.</p>';
+            }
+        }
+
+        function filterMovies() {
+            const searchTerm = document.getElementById('movie-search').value.toLowerCase();
+            const filtered = allMovies.filter(movie => 
+                movie.title.toLowerCase().includes(searchTerm) || 
+                movie.genre.toLowerCase().includes(searchTerm)
+            );
+            renderMovies(filtered);
+        }
+
+        function renderMovies(movies) {
+            const container = document.getElementById('movies-container');
+            container.innerHTML = '';
+
+            if(movies.length === 0) {
+                container.innerHTML = '<p>No movies found matching your search.</p>';
+                return;
+            }
+
+            movies.forEach(movie => {
+                const card = document.createElement('div');
+                card.className = 'movie-card';
+                card.innerHTML = `
+                    <div style="height: 150px; background: #333; display:flex; align-items:center; justify-content:center; color:#555;">
+                        [Poster Placeholder]
+                    </div>
+                    <div class="movie-info">
+                        <div class="movie-title">${movie.title}</div>
+                        <div class="movie-meta">${movie.genre} | ${movie.durationInMinutes} mins</div>
+                        <div id="shows-for-${movie.id}" class="shows-list">
+                            <span style="font-size:0.8rem; color:#777;">Loading shows...</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+                loadShowsForMovie(movie.id);
+            });
+        }
+
+        async function loadShowsForMovie(movieId) {
+            try {
+                const res = await fetch(`${API_BASE}/shows/movie/${movieId}`);
+                const shows = await res.json();
+                const container = document.getElementById(`shows-for-${movieId}`);
+                container.innerHTML = '';
+
+                if(shows.length === 0) {
+                    container.innerHTML = '<small>No shows available</small>';
+                    return;
+                }
+
+                shows.forEach(show => {
+                    const time = new Date(show.showTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const btn = document.createElement('div');
+                    btn.className = 'show-pill';
+                    btn.innerText = `${time} (${show.theatre.name})`;
+                    btn.onclick = () => openBooking(show);
+                    container.appendChild(btn);
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function openBooking(show) {
+            currentShowId = show.id;
+            selectedSeats = [];
+            updateSeatDisplay();
+            
+            // Auto-fill username if logged in
+            if(currentUser) document.getElementById('username-input').value = currentUser;
+
+            // Clear email field for a new booking
+            document.getElementById('email-input').value = '';
+
+            document.getElementById('booking-area').style.display = 'block';
+            document.getElementById('booking-title').innerText = `Booking: ${show.movie.title}`;
+            document.getElementById('booking-subtitle').innerText = `${show.theatre.name} | ${new Date(show.showTime).toLocaleString()} | ₹${show.price}`;
+            document.getElementById('seat-map').innerHTML = 'Loading seats...';
+            document.getElementById('booking-area').scrollIntoView({behavior: 'smooth'});
+
+            try {
+                const res = await fetch(`${API_BASE}/seats/show/${show.id}`);
+                const seats = await res.json();
+                renderSeats(seats);
+            } catch (e) { alert("Failed to load seats"); }
+        }
+
+        function renderSeats(seats) {
+            const grid = document.getElementById('seat-map');
+            grid.innerHTML = '';
+            seats.forEach(seat => {
+                const div = document.createElement('div');
+                div.className = `seat ${seat.booked ? 'booked' : ''}`;
+                div.title = seat.seatNumber;
+                if(!seat.booked) div.onclick = () => toggleSeat(div, seat.seatNumber);
+                grid.appendChild(div);
+            });
+        }
+
+        function toggleSeat(el, seatNum) {
+            if(el.classList.contains('selected')) {
+                el.classList.remove('selected');
+                selectedSeats = selectedSeats.filter(s => s !== seatNum);
+            } else {
+                el.classList.add('selected');
+                selectedSeats.push(seatNum);
+            }
+            updateSeatDisplay();
+        }
+
+        function updateSeatDisplay() {
+            document.getElementById('selected-seats-display').innerText = selectedSeats.length > 0 ? selectedSeats.join(', ') : 'None';
+        }
+
+        function closeBooking() {
+            document.getElementById('booking-area').style.display = 'none';
+            currentShowId = null;
+            selectedSeats = [];
+        }
+
+        async function confirmBooking() {
+            const user = document.getElementById('username-input').value;
+            const email = document.getElementById('email-input').value; // 🚨 GET NEW EMAIL VALUE
+
+            if(!user || selectedSeats.length === 0 || !email) {
+                showToast("Please select seats, enter your name, and your email.");
+                return;
+            }
+
+            const bookingId = Math.floor(Math.random() * 100000);
+            const params = new URLSearchParams();
+            params.append("showId", currentShowId);
+            params.append("bookingId", bookingId);
+            params.append("userName", user);
+            params.append("clientEmail", email); // 🚨 APPEND NEW EMAIL PARAM
+            selectedSeats.forEach(s => params.append("seats", s));
+
+            try {
+                const res = await fetch(`${API_BASE}/booking?${params.toString()}`, {
+                    method: 'POST'
+                });
+
+                if(res.ok) {
+                    showToast("Booking Successful! Confirmation email sent.");
+                    closeBooking();
+                    loadMovies(); 
+                } else {
+                    const txt = await res.text();
+                    alert("Booking failed: " + txt);
+                }
+            } catch (e) { alert("Error booking tickets"); }
+        }
+
+        // --- Admin Functions ---
+
+        async function apiAddMovie() {
+            const data = {
+                id: document.getElementById('m-id').value,
+                title: document.getElementById('m-title').value,
+                genre: document.getElementById('m-genre').value,
+                durationInMinutes: document.getElementById('m-duration').value
+            };
+            await sendPostRequest('/movies', data, "Movie Added!");
+        }
+
+        async function apiAddTheatre() {
+            const data = {
+                id: document.getElementById('t-id').value,
+                name: document.getElementById('t-name').value,
+                city: document.getElementById('t-city').value
+            };
+            await sendPostRequest('/theatres', data, "Theatre Added!");
+        }
+
+        async function apiAddShow() {
+            let timeVal = document.getElementById('s-time').value;
+            if(timeVal.length === 16) timeVal += ":00";
+
+            const data = {
+                movie: { id: document.getElementById('s-movie-id').value },
+                theatre: { id: document.getElementById('s-theatre-id').value },
+                showTime: timeVal,
+                price: document.getElementById('s-price').value
+            };
+            await sendPostRequest('/shows', data, "Show Created!");
+        }
+
+        async function sendPostRequest(endpoint, data, successMsg) {
+            try {
+                const res = await fetch(API_BASE + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if(res.ok) {
+                    showToast(successMsg);
+                } else {
+                    alert("Error: Check IDs or Server logs");
+                }
+            } catch (e) { console.error(e); alert("Request failed"); }
+        }
+
+        // Initial App Check
+        checkLogin();
+
+    </script>
+</body>
+</html>
