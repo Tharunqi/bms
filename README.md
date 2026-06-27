@@ -2,7 +2,7 @@
 
 A simplified online movie ticket booking system built for academic demonstration. This project allows users to browse movies, theatres, and shows, check seat availability, and book tickets.
 
-The backend is powered by **Java Spring Boot**, utilizing an **H2 In-Memory Database** for data storage, while the frontend interacts via standard **HTML/CSS/JavaScript**.
+The backend is powered by **Java Spring Boot**, utilizing an **H2 In-Memory Database** for data storage, while the frontend interacts through standard **HTML/CSS/JavaScript**.
 
 ---
 
