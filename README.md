@@ -40,7 +40,7 @@ Before running the application, ensure you have the following installed:
 
 ---
 
-## ⚙️ How to Run
+## ⚙️ Instructions to Run:
 
 ### 1. Clone or Download
 Download the project files to your local machine.
