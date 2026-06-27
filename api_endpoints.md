@@ -6,7 +6,7 @@ This document lists all the API endpoints found in the project, along with their
 | Method | URL | Output Type | Functionality |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/register` | `ResponseEntity<?>` (JSON Map) | Registers a new user with username and password. Checks if user exists. |
-| `POST` | `/login` | `ResponseEntity<?>` (JSON Map) | Authenticates a user. Returns a JWT token if successful, or an error message. |
+| `POST` | `/login` | `ResponseEntity<?>` (JSON Map) | Authenticates a user. Returns a JWT token if it is successful, or an error message. |
 
 ## BookingController
 | Method | URL | Output Type | Functionality |
